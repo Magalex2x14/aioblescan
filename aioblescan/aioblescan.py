@@ -787,6 +787,12 @@ class HCI_Cmd_Read_Local_Supported_Commands(HCI_Command):
     def __init__(self):
         super(self.__class__, self).__init__(b"\x04",b"\x02")
 
+class HCI_Cmd_LE_Read_Local_Supported_Features(HCI_Command):
+    """Class representing a HCI command to read LE features."""
+
+    def __init__(self):
+        super(self.__class__, self).__init__(b"\x08",b"\x03")
+
 class HCI_Cmd_LE_Scan_Enable(HCI_Command):
     """Class representing a command HCI command to enable/disable BLE scanning.
 
@@ -1409,6 +1415,7 @@ class BLEScanRequester(asyncio.Protocol):
     '''Protocol handling the requests'''
     def __init__(self):
         self._supported_commands = None
+        self._le_features = None
         self._initialized = asyncio.Event()
         self.transport = None
         self.smac = None
@@ -1476,6 +1483,8 @@ class BLEScanRequester(asyncio.Protocol):
             resp=cc.retrieve('resp code')[0]
             if opcode == 0x1002:
                 self._handle_cc_read_local_supported_commands(resp)
+            elif opcode == 0x2003:
+                self._handle_cc_le_read_local_supported_features(resp)
 
             return
 
@@ -1486,6 +1495,15 @@ class BLEScanRequester(asyncio.Protocol):
             self._supported_commands = resp.val[1:]
         else:
             self._supported_commands = [0]*64
+
+        command=HCI_Cmd_LE_Read_Local_Supported_Features()
+        self.transport.write(command.encode())
+
+    def _handle_cc_le_read_local_supported_features(self, resp):
+        if resp.val[0] == 0:
+            self._le_features = resp.val[1:]
+        else:
+            self._le_features = [0]*8
 
         self._initialized.set()
 
